@@ -1,3 +1,9 @@
+device-tree-compiler (1.4.0+dfsg-1.1+rpi1) unstable; urgency=low
+
+  * Add overlay capability
+
+ -- Serge Schneider <serge@raspberrypi.org>  Tue, 28 Apr 2015 07:51:30 +0100
+
 device-tree-compiler (1.4.0+dfsg-1) unstable; urgency=low
 
   * REALLY update to upstream version 1.4.0, closes: #725745
