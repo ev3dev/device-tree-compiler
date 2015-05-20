@@ -1,3 +1,9 @@
+device-tree-compiler (1.4.0+dfsg-1.1+rpi1build1) stable; urgency=medium
+
+  * Rebuild for ev3dev.
+
+ -- David Lechner <david@lechnology.com>  Wed, 20 May 2015 15:50:19 -0500
+
 device-tree-compiler (1.4.0+dfsg-1.1+rpi1) unstable; urgency=low
 
   * Add overlay capability
