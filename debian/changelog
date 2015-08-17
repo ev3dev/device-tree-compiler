@@ -1,3 +1,10 @@
+device-tree-compiler (1.4.0+dfsg-2) unstable; urgency=medium
+
+  * Fix out of date homepage url
+  * Fix pre-depends-directly-on-multiarch-support error
+
+ -- Riku Voipio <riku.voipio@linaro.org>  Mon, 17 Aug 2015 15:12:51 +0300
+
 device-tree-compiler (1.4.0+dfsg-1) unstable; urgency=low
 
   * REALLY update to upstream version 1.4.0, closes: #725745
