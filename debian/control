@@ -10,6 +10,7 @@ Build-Depends: debhelper (>= 11),
  texlive <!nodoc>,
  texlive-latex-extra <!nodoc>,
  valgrind,
+Rules-Requires-Root: no
 Homepage: https://git.kernel.org/cgit/utils/dtc/dtc.git
 Vcs-Git: https://salsa.debian.org/crosstoolchain-team/device-tree-compiler.git
 Vcs-Browser: https://salsa.debian.org/crosstoolchain-team/device-tree-compiler
