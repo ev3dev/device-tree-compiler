@@ -9,6 +9,7 @@ Build-Depends: debhelper (>= 11),
  bison,
  texlive <!nodoc>,
  texlive-latex-extra <!nodoc>,
+ valgrind,
 Homepage: https://git.kernel.org/cgit/utils/dtc/dtc.git
 Vcs-Git: https://salsa.debian.org/crosstoolchain-team/device-tree-compiler.git
 Vcs-Browser: https://salsa.debian.org/crosstoolchain-team/device-tree-compiler
