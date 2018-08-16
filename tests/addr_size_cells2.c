@@ -1,7 +1,7 @@
 /*
  * libfdt - Flat Device Tree manipulation
- *	Testcase for misbehaviour on a truncated property
- * Copyright (C) 2006 David Gibson, IBM Corporation.
+ *	Testcase for #address-cells and #size-cells handling
+ * Copyright (C) 2014 David Gibson, <david@gibson.dropbear.id.au>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -17,7 +17,6 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -28,22 +27,36 @@
 #include "tests.h"
 #include "testdata.h"
 
+static void check_node(const void *fdt, const char *path, int ac, int sc)
+{
+	int offset;
+	int xac, xsc;
+
+	offset = fdt_path_offset(fdt, path);
+	if (offset < 0)
+		FAIL("Couldn't find path %s", path);
+
+	xac = fdt_address_cells(fdt, offset);
+	xsc = fdt_size_cells(fdt, offset);
+
+	if (xac != ac)
+		FAIL("Address cells for %s is %d instead of %d\n",
+		     path, xac, ac);
+	if (xsc != sc)
+		FAIL("Size cells for %s is %d instead of %d\n",
+		     path, xsc, sc);
+}
+
 int main(int argc, char *argv[])
 {
-	void *fdt = &truncated_property;
-	const void *prop;
-	int len;
+	void *fdt;
+
+	if (argc != 2)
+		CONFIG("Usage: %s <dtb file>\n", argv[0]);
 
 	test_init(argc, argv);
+	fdt = load_blob(argv[1]);
 
-	vg_prepare_blob(fdt, fdt_totalsize(fdt));
-
-	prop = fdt_getprop(fdt, 0, "truncated", &len);
-	if (prop)
-		FAIL("fdt_getprop() succeeded on truncated property");
-	if (len != -FDT_ERR_BADSTRUCTURE)
-		FAIL("fdt_getprop() failed with \"%s\" instead of \"%s\"",
-		     fdt_strerror(len), fdt_strerror(-FDT_ERR_BADSTRUCTURE));
-
+	check_node(fdt, "/", 2, 2);
 	PASS();
 }

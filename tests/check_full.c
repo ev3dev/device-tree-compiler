@@ -1,7 +1,7 @@
 /*
  * libfdt - Flat Device Tree manipulation
- *	Testcase for misbehaviour on a truncated property
- * Copyright (C) 2006 David Gibson, IBM Corporation.
+ *	Tests if two given dtbs are structurally equal (including order)
+ * Copyright (C) 2007 David Gibson, IBM Corporation.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -28,22 +28,36 @@
 #include "tests.h"
 #include "testdata.h"
 
+static int expect_bad; /* = 0 */
+
 int main(int argc, char *argv[])
 {
-	void *fdt = &truncated_property;
-	const void *prop;
-	int len;
+	const char *filename;
+	char *fdt;
+	size_t len;
+	int err;
 
 	test_init(argc, argv);
+	if ((argc != 2)
+	    && ((argc != 3) || !streq(argv[1], "-n")))
+		CONFIG("Usage: %s [-n] <dtb file>", argv[0]);
+	if (argc == 3)
+		expect_bad = 1;
 
-	vg_prepare_blob(fdt, fdt_totalsize(fdt));
+	filename = argv[argc-1];
+	err = utilfdt_read_err(filename, &fdt, &len);
+	if (err)
+		CONFIG("Couldn't open blob from \"%s\": %s",
+		       filename, strerror(err));
 
-	prop = fdt_getprop(fdt, 0, "truncated", &len);
-	if (prop)
-		FAIL("fdt_getprop() succeeded on truncated property");
-	if (len != -FDT_ERR_BADSTRUCTURE)
-		FAIL("fdt_getprop() failed with \"%s\" instead of \"%s\"",
-		     fdt_strerror(len), fdt_strerror(-FDT_ERR_BADSTRUCTURE));
+	vg_prepare_blob(fdt, len);
+
+	err = fdt_check_full(fdt, len);
+
+	if (expect_bad && (err == 0))
+		FAIL("fdt_check_full() succeeded unexpectedly");
+	else if (!expect_bad && (err != 0))
+		FAIL("fdt_check_full() failed: %s", fdt_strerror(err));
 
 	PASS();
 }

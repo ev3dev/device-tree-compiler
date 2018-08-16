@@ -10,42 +10,38 @@
 /plugin/;
 
 /* Test that we can change an int by another */
-&test {
+&{/test-node} {
 	test-int-property = <43>;
 };
 
 /* Test that we can replace a string by a longer one */
-&test {
+&{/test-node} {
 	test-str-property = "foobar";
 };
 
 /* Test that we add a new property */
-&test {
+&{/test-node} {
 	test-str-property-2 = "foobar2";
 };
 
 /* Test that we add a new node (by phandle) */
-&test {
+&{/test-node} {
 	new-node {
 		new-property;
 	};
 };
 
-&test {
+&{/} {
 	local: new-local-node {
 		new-property;
 	};
 };
 
-&test {
-	test-phandle = <&test>, <&local>;
-};
-
-&test {
+&{/} {
 	test-several-phandle = <&local>, <&local>;
 };
 
-&test {
+&{/test-node} {
 	sub-test-node {
 		new-sub-test-property;
 	};

@@ -1,7 +1,7 @@
 /*
  * libfdt - Flat Device Tree manipulation
- *	Testcase for misbehaviour on a truncated property
- * Copyright (C) 2006 David Gibson, IBM Corporation.
+ *	Testcase for misbehaviour on a truncated string
+ * Copyright (C) 2018 David Gibson, IBM Corporation.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -30,20 +30,34 @@
 
 int main(int argc, char *argv[])
 {
-	void *fdt = &truncated_property;
-	const void *prop;
-	int len;
+	void *fdt = &truncated_memrsv;
+	int err;
+	uint64_t addr, size;
 
 	test_init(argc, argv);
 
-	vg_prepare_blob(fdt, fdt_totalsize(fdt));
+	err = fdt_check_header(fdt);
+	if (err != 0)
+		FAIL("Bad header: %s", fdt_strerror(err));
 
-	prop = fdt_getprop(fdt, 0, "truncated", &len);
-	if (prop)
-		FAIL("fdt_getprop() succeeded on truncated property");
-	if (len != -FDT_ERR_BADSTRUCTURE)
-		FAIL("fdt_getprop() failed with \"%s\" instead of \"%s\"",
-		     fdt_strerror(len), fdt_strerror(-FDT_ERR_BADSTRUCTURE));
+	err = fdt_num_mem_rsv(fdt);
+	if (err != -FDT_ERR_TRUNCATED)
+		FAIL("fdt_num_mem_rsv() returned %d instead of -FDT_ERR_TRUNCATED",
+		     err);
+
+	err = fdt_get_mem_rsv(fdt, 0, &addr, &size);
+	if (err != 0)
+		FAIL("fdt_get_mem_rsv() failed on first entry: %s",
+		     fdt_strerror(err));
+	if ((addr != TEST_ADDR_1) || (size != TEST_SIZE_1))
+		FAIL("Entry doesn't match: (0x%llx, 0x%llx) != (0x%llx, 0x%llx)",
+		     (unsigned long long)addr, (unsigned long long)size,
+		     TEST_ADDR_1, TEST_SIZE_1);
+
+	err = fdt_get_mem_rsv(fdt, 1, &addr, &size);
+	if (err != -FDT_ERR_BADOFFSET)
+		FAIL("fdt_get_mem_rsv(1) returned %d instead of -FDT_ERR_BADOFFSET",
+		     err);
 
 	PASS();
 }
