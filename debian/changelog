@@ -1,3 +1,9 @@
+device-tree-compiler (1.4.7-3) unstable; urgency=medium
+
+  * Add Build-Depends on pkg-config, which is used to check for valgrind.
+
+ -- Vagrant Cascadian <vagrant@debian.org>  Tue, 11 Sep 2018 00:51:07 -0700
+
 device-tree-compiler (1.4.7-2) unstable; urgency=medium
 
   * Add patch from upstream making valgrind optional.
