@@ -9,7 +9,7 @@ Build-Depends: debhelper (>= 11),
  bison,
  texlive <!nodoc>,
  texlive-latex-extra <!nodoc>,
- valgrind,
+ valgrind [amd64 arm64 armhf i386 mips mips64el mipsel powerpc ppc64 ppc64el s390x],
 Rules-Requires-Root: no
 Homepage: https://git.kernel.org/cgit/utils/dtc/dtc.git
 Vcs-Git: https://salsa.debian.org/crosstoolchain-team/device-tree-compiler.git
