@@ -1,3 +1,13 @@
+device-tree-compiler (1.5.0-1) experimental; urgency=medium
+
+  * Update to new upstream version:
+    - Drop patch to make valgrind optional, applied upstream.
+    - Add Build-Depends on libyaml-dev.
+  * Build-Depend on debhelper-compat instead of debhelper.
+  * Update to Standards-Version 4.3.0, no changes needed.
+
+ -- Vagrant Cascadian <vagrant@debian.org>  Tue, 12 Mar 2019 14:05:20 -0700
+
 device-tree-compiler (1.4.7-3) unstable; urgency=medium
 
   * Add Build-Depends on pkg-config, which is used to check for valgrind.
