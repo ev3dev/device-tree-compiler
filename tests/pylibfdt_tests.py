@@ -69,7 +69,7 @@ TEST_ADDR_2H = 0
 TEST_ADDR_2L = 123456789
 TEST_ADDR_2 = (TEST_ADDR_2H << 32) | TEST_ADDR_2L
 TEST_SIZE_2H = 0
-TEST_SIZE_2L = 010000
+TEST_SIZE_2L = 0o10000
 TEST_SIZE_2 = (TEST_SIZE_2H << 32) | TEST_SIZE_2L
 
 TEST_VALUE_1 = 0xdeadbeef
@@ -82,9 +82,11 @@ TEST_VALUE64_1 = (TEST_VALUE64_1H << 32) | TEST_VALUE64_1L
 PHANDLE_1 = 0x2000
 PHANDLE_2 = 0x2001
 
+TEST_BYTES_1 = b'hello world'
+
 TEST_STRING_1 = 'hello world'
 TEST_STRING_2 = 'hi world'
-TEST_STRING_3 = u'unicode ' + unichr(467)
+TEST_STRING_3 = u'unicode \u01d3'
 
 
 def get_err(err_code):
@@ -107,7 +109,7 @@ def _ReadFdt(fname):
     Returns:
         Fdt bytearray suitable for passing to libfdt functions
     """
-    return libfdt.Fdt(open(fname).read())
+    return libfdt.Fdt(open(fname, mode='rb').read())
 
 class PyLibfdtBasicTests(unittest.TestCase):
     """Test class for basic pylibfdt access functions
@@ -139,6 +141,24 @@ class PyLibfdtBasicTests(unittest.TestCase):
             poffset = self.fdt.next_property_offset(poffset, QUIET_NOTFOUND)
         return prop_list
 
+    def GetSubnodes(self, node_path):
+        """Read a list of subnodes from a node
+
+        Args:
+            node_path: Full path to node, e.g. '/subnode@1/subsubnode'
+
+        Returns:
+            List of subnode names for that node, e.g. ['subsubnode', 'ss1']
+        """
+        subnode_list = []
+        node = self.fdt.path_offset(node_path)
+        offset = self.fdt.first_subnode(node, QUIET_NOTFOUND)
+        while offset > 0:
+            name = self.fdt.get_name(offset)
+            subnode_list.append(name)
+            offset = self.fdt.next_subnode(offset, QUIET_NOTFOUND)
+        return subnode_list
+
     def testImport(self):
         """Check that we can import the library correctly"""
         self.assertEquals(type(libfdt), types.ModuleType)
@@ -146,7 +166,7 @@ class PyLibfdtBasicTests(unittest.TestCase):
     def testBadFdt(self):
         """Check that a filename provided accidentally is not accepted"""
         with self.assertRaises(FdtException) as e:
-            fdt = libfdt.Fdt('a string')
+            fdt = libfdt.Fdt(b'a string')
         self.assertEquals(e.exception.err, -libfdt.BADMAGIC)
 
     def testSubnodeOffset(self):
@@ -221,7 +241,7 @@ class PyLibfdtBasicTests(unittest.TestCase):
         poffset = self.fdt.first_property_offset(root)
         prop = self.fdt.get_property_by_offset(poffset)
         self.assertEquals(prop.name, 'compatible')
-        self.assertEquals(prop, 'test_tree1\0')
+        self.assertEquals(prop, b'test_tree1\0')
 
         with self.assertRaises(FdtException) as e:
             self.fdt.get_property_by_offset(-2)
@@ -234,7 +254,7 @@ class PyLibfdtBasicTests(unittest.TestCase):
         """Check that we can read the contents of a property by name"""
         root = self.fdt.path_offset('/')
         value = self.fdt.getprop(root, "compatible")
-        self.assertEquals(value, 'test_tree1\0')
+        self.assertEquals(value, b'test_tree1\0')
         self.assertEquals(-libfdt.NOTFOUND, self.fdt.getprop(root, 'missing',
                                                              QUIET_NOTFOUND))
 
@@ -244,7 +264,7 @@ class PyLibfdtBasicTests(unittest.TestCase):
 
         node = self.fdt.path_offset('/subnode@1/subsubnode')
         value = self.fdt.getprop(node, "compatible")
-        self.assertEquals(value, 'subsubnode1\0subsubnode\0')
+        self.assertEquals(value, b'subsubnode1\0subsubnode\0')
 
     def testStrError(self):
         """Check that we can get an error string"""
@@ -404,7 +424,7 @@ class PyLibfdtBasicTests(unittest.TestCase):
         self.assertEquals(2, self.fdt.num_mem_rsv())
         self.assertEquals([ 0xdeadbeef00000000, 0x100000],
                           self.fdt.get_mem_rsv(0))
-        self.assertEquals([123456789, 010000], self.fdt.get_mem_rsv(1))
+        self.assertEquals([123456789, 0o10000], self.fdt.get_mem_rsv(1))
 
     def testEmpty(self):
         """Test that we can create an empty tree"""
@@ -425,21 +445,21 @@ class PyLibfdtBasicTests(unittest.TestCase):
     def testSetProp(self):
         """Test that we can update and create properties"""
         node = self.fdt.path_offset('/subnode@1')
-        self.fdt.setprop(node, 'compatible', TEST_STRING_1)
-        self.assertEquals(TEST_STRING_1, self.fdt.getprop(node, 'compatible'))
+        self.fdt.setprop(node, 'compatible', TEST_BYTES_1)
+        self.assertEquals(TEST_BYTES_1, self.fdt.getprop(node, 'compatible'))
 
         # Check that this property is missing, and that we don't have space to
         # add it
         self.assertEquals(-libfdt.NOTFOUND,
                           self.fdt.getprop(node, 'missing', QUIET_NOTFOUND))
         self.assertEquals(-libfdt.NOSPACE,
-                          self.fdt.setprop(node, 'missing', TEST_STRING_1,
+                          self.fdt.setprop(node, 'missing', TEST_BYTES_1,
                                            quiet=(libfdt.NOSPACE,)))
 
         # Expand the device tree so we now have room
         self.fdt.resize(self.fdt.totalsize() + 50)
-        self.fdt.setprop(node, 'missing', TEST_STRING_1)
-        self.assertEquals(TEST_STRING_1, self.fdt.getprop(node, 'missing'))
+        self.fdt.setprop(node, 'missing', TEST_BYTES_1)
+        self.assertEquals(TEST_BYTES_1, self.fdt.getprop(node, 'missing'))
 
     def testSetPropU32(self):
         """Test that we can update and create integer properties"""
@@ -494,6 +514,19 @@ class PyLibfdtBasicTests(unittest.TestCase):
         with self.assertRaises(ValueError) as e:
             self.fdt.set_name(node, 'name\0')
         self.assertIn('embedded nul', str(e.exception))
+
+    def testAddDeleteNodes(self):
+        """Test that we can add and delete nodes"""
+        node_name = '/subnode@1'
+        self.assertEquals(self.GetSubnodes(node_name), ['subsubnode', 'ss1'])
+        node = self.fdt.path_offset('%s/subsubnode' % node_name)
+        self.assertEquals(self.fdt.del_node(node, 'subsubnode'), 0)
+        self.assertEquals(self.GetSubnodes(node_name), ['ss1'])
+
+        node = self.fdt.path_offset(node_name)
+        offset = self.fdt.add_subnode(node, 'more')
+        self.assertTrue(offset > 0)
+        self.assertEquals(self.GetSubnodes(node_name), ['more', 'ss1'])
 
 
 class PyLibfdtSwTests(unittest.TestCase):
@@ -560,7 +593,7 @@ class PyLibfdtSwTests(unittest.TestCase):
 
         # Make sure we can read from the tree too
         node = sw.path_offset('/subnode@1')
-        self.assertEqual('subnode1' + chr(0), sw.getprop(node, 'compatible'))
+        self.assertEqual(b'subnode1\0', sw.getprop(node, 'compatible'))
 
         # Make sure we did at least two resizes
         self.assertTrue(len(fdt.as_bytearray()) > FdtSw.INC_SIZE * 2)
@@ -578,15 +611,15 @@ class PyLibfdtRoTests(unittest.TestCase):
 
     def setUp(self):
         """Read in the device tree we use for testing"""
-        self.fdt = libfdt.FdtRo(open('test_tree1.dtb').read())
+        self.fdt = libfdt.FdtRo(open('test_tree1.dtb', mode='rb').read())
 
     def testAccess(self):
         """Basic sanity check for the FdtRo class"""
         node = self.fdt.path_offset('/subnode@1')
-        self.assertEqual('subnode1' + chr(0),
+        self.assertEqual(b'subnode1\0',
                          self.fdt.getprop(node, 'compatible'))
         node = self.fdt.first_subnode(node)
-        self.assertEqual('this is a placeholder string\0string2\0',
+        self.assertEqual(b'this is a placeholder string\0string2\0',
                          self.fdt.getprop(node, 'placeholder'))
 
 

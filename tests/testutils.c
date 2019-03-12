@@ -30,7 +30,17 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#if NO_VALGRIND
+static inline void VALGRIND_MAKE_MEM_UNDEFINED(void *p, size_t len)
+{
+}
+
+static inline void VALGRIND_MAKE_MEM_DEFINED(void *p, size_t len)
+{
+}
+#else
 #include <valgrind/memcheck.h>
+#endif
 
 #include <libfdt.h>
 
@@ -149,6 +159,31 @@ const void *check_getprop(void *fdt, int nodeoffset, const char *name,
 
 	return propval;
 }
+
+const void *check_get_prop_offset(void *fdt, int poffset, const char *exp_name,
+				  int exp_len, const void *exp_val)
+{
+	const void *propval;
+	const char *name;
+	int proplen;
+
+	propval = fdt_getprop_by_offset(fdt, poffset, &name, &proplen);
+	if (!propval)
+		FAIL("fdt_getprop(\"%s\"): %s", name, fdt_strerror(proplen));
+
+	/* Not testing for this field, so ignore */
+	if (strcmp(name, exp_name))
+		return NULL;
+
+	if (proplen != exp_len)
+		FAIL("Size mismatch on property \"%s\": %d insead of %d",
+		     name, proplen, exp_len);
+	if (exp_len && memcmp(exp_val, propval, exp_len))
+		FAIL("Data mismatch on property \"%s\"", name);
+
+	return propval;
+}
+
 
 int nodename_eq(const char *s1, const char *s2)
 {

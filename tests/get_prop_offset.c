@@ -1,7 +1,7 @@
 /*
  * libfdt - Flat Device Tree manipulation
- *	Testcase for #address-cells and #size-cells handling
- * Copyright (C) 2014 David Gibson, <david@gibson.dropbear.id.au>
+ *	Testcase for fdt_getprop_by_offset()
+ * Copyright (C) 2006 David Gibson, IBM Corporation.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -17,6 +17,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,41 +28,29 @@
 #include "tests.h"
 #include "testdata.h"
 
-static void check_node(const void *fdt, const char *path, int ac, int sc)
-{
-	int offset;
-	int xac, xsc;
-
-	offset = fdt_path_offset(fdt, path);
-	if (offset < 0)
-		FAIL("Couldn't find path %s", path);
-
-	xac = fdt_address_cells(fdt, offset);
-	xsc = fdt_size_cells(fdt, offset);
-
-	if (xac != ac)
-		FAIL("Address cells for %s is %d instead of %d\n",
-		     path, xac, ac);
-	if (xsc != sc)
-		FAIL("Size cells for %s is %d instead of %d\n",
-		     path, xsc, sc);
-}
-
 int main(int argc, char *argv[])
 {
+	bool found_prop_int = false;
+	bool found_prop_str = false;
+	int poffset;
 	void *fdt;
 
-	if (argc != 2)
-		CONFIG("Usage: %s <dtb file>\n", argv[0]);
-
 	test_init(argc, argv);
-	fdt = load_blob(argv[1]);
+	fdt = load_blob_arg(argc, argv);
 
-	check_node(fdt, "/", 2, 2);
-	check_node(fdt, "/identity-bus@0", 2, 1);
-	check_node(fdt, "/simple-bus@1000000", 2, 1);
-	check_node(fdt, "/c0", -FDT_ERR_BADNCELLS, -FDT_ERR_BADNCELLS);
-	check_node(fdt, "/c1", -FDT_ERR_BADNCELLS, -FDT_ERR_BADNCELLS);
-	check_node(fdt, "/c2", -FDT_ERR_BADNCELLS, -FDT_ERR_BADNCELLS);
+	fdt_for_each_property_offset(poffset, fdt, 0) {
+		if (check_get_prop_offset_cell(fdt, poffset, "prop-int",
+					       TEST_VALUE_1))
+			found_prop_int = true;
+		if (check_get_prop_offset(fdt, poffset, "prop-str",
+					  strlen(TEST_STRING_1) + 1,
+					  TEST_STRING_1))
+			found_prop_str = true;
+	}
+	if (!found_prop_int)
+		FAIL("Property 'prop-int' not found");
+	if (!found_prop_str)
+		FAIL("Property 'prop-str' not found");
+
 	PASS();
 }

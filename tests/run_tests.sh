@@ -88,6 +88,9 @@ wrap_test () {
 	    if [ "$ret" -gt 127 ]; then
 		signame=$(kill -l $((ret - 128)))
 		FAIL "Killed by SIG$signame"
+	    elif [ "$ret" -eq $VGCODE ]; then
+		echo "VALGRIND ERROR"
+		exit $VGCODE
 	    else
 		FAIL "Returned error code $ret"
 	    fi
@@ -257,6 +260,11 @@ dtc_overlay_tests () {
     run_test check_path overlay_overlay_bypath.test.dtb not-exists "/__fixups__"
     run_test check_path overlay_overlay_bypath.test.dtb exists "/__local_fixups__"
 
+    # Make sure local target references are resolved and nodes are merged and that path references are not
+    run_dtc_test -I dts -O dtb -o overlay_overlay_local_merge.test.dtb overlay_overlay_local_merge.dts
+    run_test check_path overlay_overlay_local_merge.test.dtb exists "/fragment@0/__overlay__/new-node/new-merged-node"
+    run_test check_path overlay_overlay_local_merge.test.dtb exists "/fragment@1/__overlay__/new-root-node"
+
     # Check building works the same as manual constructions
     run_test dtbs_equal_ordered overlay_overlay.test.dtb overlay_overlay_nosugar.test.dtb
 
@@ -295,6 +303,7 @@ tree1_tests () {
     run_test path_offset $TREE
     run_test get_name $TREE
     run_test getprop $TREE
+    run_test get_prop_offset $TREE
     run_test get_phandle $TREE
     run_test get_path $TREE
     run_test supernode_atdepth_offset $TREE
@@ -448,6 +457,14 @@ libfdt_tests () {
 
     run_test check_header test_tree1.dtb
 
+    FSBASE=fs
+    rm -rf $FSBASE
+    mkdir -p $FSBASE
+    run_test fs_tree1 $FSBASE/test_tree1
+    run_dtc_test -I fs -O dts -o fs.test_tree1.test.dts $FSBASE/test_tree1
+    run_dtc_test -I fs -O dtb -o fs.test_tree1.test.dtb $FSBASE/test_tree1
+    run_test dtbs_equal_unordered -m fs.test_tree1.test.dtb test_tree1.dtb
+
     # check full tests
     for good in test_tree1.dtb; do
 	run_test check_full $good
@@ -559,6 +576,20 @@ dtc_tests () {
         run_dtc_test -I dts -O dts $tree.test.dts
         run_wrap_test cmp $tree $tree.test.dts
     done
+    for tree in path-references; do
+        run_dtc_test -I dts -O dtb -o $tree.test.dtb $tree.dts
+        run_dtc_test -I dts -O dts -o $tree.test.dts $tree.dts
+        run_dtc_test -I dts -O dtb -o $tree.test.dts.test.dtb $tree.test.dts
+        run_test dtbs_equal_ordered $tree.test.dtb $tree.test.dts.test.dtb
+    done
+
+    # Check -Oyaml output
+    if pkg-config --exists yaml-0.1; then
+            for tree in type-preservation; do
+                run_dtc_test -I dts -O yaml -o $tree.test.dt.yaml $tree.dts
+                run_wrap_test cmp $tree.dt.yaml $tree.test.dt.yaml
+            done
+    fi
 
     # Check version conversions
     for tree in test_tree1.dtb ; do
@@ -652,6 +683,10 @@ dtc_tests () {
     check_tests pci-bridge-bad1.dts pci_bridge
     check_tests pci-bridge-bad2.dts pci_bridge
 
+    check_tests unit-addr-simple-bus-reg-mismatch.dts simple_bus_reg
+    check_tests unit-addr-simple-bus-compatible.dts simple_bus_reg
+
+
     # Check warning options
     run_sh_test dtc-checkfails.sh address_cells_is_cell interrupt_cells_is_cell -n size_cells_is_cell -- -Wno_size_cells_is_cell -I dts -O dtb bad-ncells.dts
     run_sh_test dtc-fails.sh -n test-warn-output.test.dtb -I dts -O dtb bad-ncells.dts
@@ -699,10 +734,10 @@ dtc_tests () {
     for align in 2 4 8 16 32 64; do
 	# -p -a
 	run_dtc_test -O dtb -p 1000 -a $align -o align0.dtb subnode_iterate.dts
-	check_align align0.dtb $align
+	base_run_test check_align align0.dtb $align
 	# -S -a
 	run_dtc_test -O dtb -S 1999 -a $align -o align1.dtb subnode_iterate.dts
-	check_align align1.dtb $align
+	base_run_test check_align align1.dtb $align
     done
 
     # Tests for overlay/plugin generation
@@ -899,13 +934,13 @@ fdtoverlay_tests() {
 pylibfdt_tests () {
     run_dtc_test -I dts -O dtb -o test_props.dtb test_props.dts
     TMP=/tmp/tests.stderr.$$
-    python pylibfdt_tests.py -v 2> $TMP
+    $PYTHON pylibfdt_tests.py -v 2> $TMP
 
     # Use the 'ok' message meaning the test passed, 'ERROR' meaning it failed
     # and the summary line for total tests (e.g. 'Ran 17 tests in 0.002s').
     # We could add pass + fail to get total tests, but this provides a useful
     # sanity check.
-    pass_count=$(grep "\.\.\. ok$" $TMP | wc -l)
+    pass_count=$(grep "ok$" $TMP | wc -l)
     fail_count=$(grep "^ERROR: " $TMP | wc -l)
     total_tests=$(sed -n 's/^Ran \([0-9]*\) tests.*$/\1/p' $TMP)
     cat $TMP
@@ -938,7 +973,7 @@ if [ -z "$TESTSETS" ]; then
     TESTSETS="libfdt utilfdt dtc dtbs_equal fdtget fdtput fdtdump fdtoverlay"
 
     # Test pylibfdt if the libfdt Python module is available.
-    if [ -f ../pylibfdt/_libfdt.so ]; then
+    if [ -f ../pylibfdt/_libfdt.so ] || [ -f ../pylibfdt/_libfdt.cpython-3*.so ]; then
         TESTSETS="$TESTSETS pylibfdt"
     fi
 fi

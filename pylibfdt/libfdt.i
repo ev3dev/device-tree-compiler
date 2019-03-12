@@ -137,7 +137,7 @@ def check_err(val, quiet=()):
     Raises
         FdtException if val < 0
     """
-    if val < 0:
+    if isinstance(val, int) and val < 0:
         if -val not in quiet:
             raise FdtException(val)
     return val
@@ -669,21 +669,54 @@ class Fdt(FdtRo):
         Raises:
             FdtException if no parent found or other error occurs
         """
-        val = val.encode('utf-8') + '\0'
+        val = val.encode('utf-8') + b'\0'
         return check_err(fdt_setprop(self._fdt, nodeoffset, prop_name,
                                      val, len(val)), quiet)
 
-    def delprop(self, nodeoffset, prop_name):
+    def delprop(self, nodeoffset, prop_name, quiet=()):
         """Delete a property from a node
 
         Args:
             nodeoffset: Node offset containing property to delete
             prop_name: Name of property to delete
+            quiet: Errors to ignore (empty to raise on all errors)
+
+        Returns:
+            Error code, or 0 if OK
 
         Raises:
             FdtError if the property does not exist, or another error occurs
         """
-        return check_err(fdt_delprop(self._fdt, nodeoffset, prop_name))
+        return check_err(fdt_delprop(self._fdt, nodeoffset, prop_name), quiet)
+
+    def add_subnode(self, parentoffset, name, quiet=()):
+        """Add a new subnode to a node
+
+        Args:
+            parentoffset: Parent offset to add the subnode to
+            name: Name of node to add
+
+        Returns:
+            offset of the node created, or negative error code on failure
+
+        Raises:
+            FdtError if there is not enough space, or another error occurs
+        """
+        return check_err(fdt_add_subnode(self._fdt, parentoffset, name), quiet)
+
+    def del_node(self, nodeoffset, quiet=()):
+        """Delete a node
+
+        Args:
+            nodeoffset: Offset of node to delete
+
+        Returns:
+            Error code, or 0 if OK
+
+        Raises:
+            FdtError if an error occurs
+        """
+        return check_err(fdt_del_node(self._fdt, nodeoffset), quiet)
 
 
 class Property(bytearray):
@@ -995,7 +1028,7 @@ class NodeAdder():
  */
 typedef uint32_t fdt32_t;
 
-%include "libfdt/fdt.h"
+%include "fdt.h"
 
 %include "typemaps.i"
 
@@ -1041,17 +1074,24 @@ typedef uint32_t fdt32_t;
 	if (!$1)
 		$result = Py_None;
 	else
-		$result = Py_BuildValue("s#", $1, *arg4);
+        %#if PY_VERSION_HEX >= 0x03000000
+            $result = Py_BuildValue("y#", $1, *arg4);
+        %#else
+            $result = Py_BuildValue("s#", $1, *arg4);
+        %#endif
 }
 
 /* typemap used for fdt_setprop() */
 %typemap(in) (const void *val) {
-    $1 = PyString_AsString($input);   /* char *str */
-}
-
-/* typemap used for fdt_add_reservemap_entry() */
-%typemap(in) uint64_t {
-   $1 = PyLong_AsUnsignedLong($input);
+    %#if PY_VERSION_HEX >= 0x03000000
+        if (!PyBytes_Check($input)) {
+            SWIG_exception_fail(SWIG_TypeError, "bytes expected in method '" "$symname"
+                "', argument " "$argnum"" of type '" "$type""'");
+        }
+        $1 = PyBytes_AsString($input);
+    %#else
+        $1 = PyString_AsString($input);   /* char *str */
+    %#endif
 }
 
 /* typemaps used for fdt_next_node() */
@@ -1073,7 +1113,7 @@ typedef uint32_t fdt32_t;
 }
 
 %typemap(argout) uint64_t * {
-        PyObject *val = PyLong_FromUnsignedLong(*arg$argnum);
+        PyObject *val = PyLong_FromUnsignedLongLong(*arg$argnum);
         if (!result) {
            if (PyTuple_GET_SIZE(resultobj) == 0)
               resultobj = val;
@@ -1106,4 +1146,4 @@ int fdt_property_cell(void *fdt, const char *name, uint32_t val);
  */
 int fdt_property_stub(void *fdt, const char *name, const char *val, int len);
 
-%include <../libfdt/libfdt.h>
+%include <libfdt.h>

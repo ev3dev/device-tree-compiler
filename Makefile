@@ -9,8 +9,8 @@
 # CONFIG_LOCALVERSION from some future config system.
 #
 VERSION = 1
-PATCHLEVEL = 4
-SUBLEVEL = 7
+PATCHLEVEL = 5
+SUBLEVEL = 0
 EXTRAVERSION =
 LOCAL_VERSION =
 CONFIG_LOCALVERSION =
@@ -24,6 +24,7 @@ BISON = bison
 LEX = flex
 SWIG = swig
 PKG_CONFIG ?= pkg-config
+PYTHON ?= python2
 
 INSTALL = /usr/bin/install
 INSTALL_PROGRAM = $(INSTALL)
@@ -38,6 +39,20 @@ INCLUDEDIR = $(PREFIX)/include
 
 HOSTOS := $(shell uname -s | tr '[:upper:]' '[:lower:]' | \
 	    sed -e 's/\(cygwin\|msys\).*/\1/')
+
+NO_VALGRIND := $(shell $(PKG_CONFIG) --exists valgrind; echo $$?)
+ifeq ($(NO_VALGRIND),1)
+	CFLAGS += -DNO_VALGRIND
+else
+	CFLAGS += $(shell $(PKG_CONFIG) --cflags valgrind)
+endif
+
+NO_YAML := $(shell $(PKG_CONFIG) --exists yaml-0.1; echo $$?)
+ifeq ($(NO_YAML),1)
+	CFLAGS += -DNO_YAML
+else
+	LDLIBS += $(shell $(PKG_CONFIG) --libs yaml-0.1)
+endif
 
 ifeq ($(HOSTOS),darwin)
 SHAREDLIB_EXT     = dylib
@@ -133,7 +148,7 @@ all: $(BIN) libfdt
 # We need both Python and swig to build/install pylibfdt.
 # This builds the given make ${target} if those deps are found.
 check_python_deps = \
-	if $(PKG_CONFIG) --cflags python2 >/dev/null 2>&1; then \
+	if $(PKG_CONFIG) --cflags $(PYTHON) >/dev/null 2>&1; then \
 		if which swig >/dev/null 2>&1; then \
 			can_build=yes; \
 		fi; \
@@ -167,28 +182,22 @@ endif
 #
 # Rules for libfdt
 #
-LIBFDT_objdir = libfdt
-LIBFDT_srcdir = libfdt
-LIBFDT_archive = $(LIBFDT_objdir)/libfdt.a
-LIBFDT_lib = $(LIBFDT_objdir)/libfdt-$(DTC_VERSION).$(SHAREDLIB_EXT)
-LIBFDT_include = $(addprefix $(LIBFDT_srcdir)/,$(LIBFDT_INCLUDES))
-LIBFDT_version = $(addprefix $(LIBFDT_srcdir)/,$(LIBFDT_VERSION))
+LIBFDT_dir = libfdt
+LIBFDT_archive = $(LIBFDT_dir)/libfdt.a
+LIBFDT_lib = $(LIBFDT_dir)/libfdt-$(DTC_VERSION).$(SHAREDLIB_EXT)
+LIBFDT_include = $(addprefix $(LIBFDT_dir)/,$(LIBFDT_INCLUDES))
+LIBFDT_version = $(addprefix $(LIBFDT_dir)/,$(LIBFDT_VERSION))
 
-include $(LIBFDT_srcdir)/Makefile.libfdt
+include $(LIBFDT_dir)/Makefile.libfdt
 
 .PHONY: libfdt
 libfdt: $(LIBFDT_archive) $(LIBFDT_lib)
 
-$(LIBFDT_archive): $(addprefix $(LIBFDT_objdir)/,$(LIBFDT_OBJS))
-$(LIBFDT_lib): $(addprefix $(LIBFDT_objdir)/,$(LIBFDT_OBJS))
-
-libfdt_clean:
-	@$(VECHO) CLEAN "(libfdt)"
-	rm -f $(addprefix $(LIBFDT_objdir)/,$(STD_CLEANFILES))
-	rm -f $(LIBFDT_objdir)/*.so
+$(LIBFDT_archive): $(addprefix $(LIBFDT_dir)/,$(LIBFDT_OBJS))
+$(LIBFDT_lib): $(addprefix $(LIBFDT_dir)/,$(LIBFDT_OBJS))
 
 ifneq ($(DEPTARGETS),)
--include $(LIBFDT_OBJS:%.o=$(LIBFDT_objdir)/%.d)
+-include $(LIBFDT_OBJS:%.o=$(LIBFDT_dir)/%.d)
 endif
 
 # This stops make from generating the lex and bison output during
@@ -253,17 +262,12 @@ dist:
 #
 # Rules for pylibfdt
 #
-PYLIBFDT_srcdir = pylibfdt
-PYLIBFDT_objdir = pylibfdt
+PYLIBFDT_dir = pylibfdt
 
-include $(PYLIBFDT_srcdir)/Makefile.pylibfdt
+include $(PYLIBFDT_dir)/Makefile.pylibfdt
 
 .PHONY: pylibfdt
-pylibfdt: $(PYLIBFDT_objdir)/_libfdt.so
-
-pylibfdt_clean:
-	@$(VECHO) CLEAN "(pylibfdt)"
-	rm -f $(addprefix $(PYLIBFDT_objdir)/,$(PYLIBFDT_cleanfiles))
+pylibfdt: $(PYLIBFDT_dir)/_libfdt.so
 
 #
 # Release signing and uploading
@@ -322,7 +326,7 @@ clean: libfdt_clean pylibfdt_clean tests_clean
 #
 %: %.o
 	@$(VECHO) LD $@
-	$(LINK.c) -o $@ $^
+	$(LINK.c) -o $@ $^ $(LDLIBS)
 
 %.o: %.c
 	@$(VECHO) CC $@
