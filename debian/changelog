@@ -1,7 +1,6 @@
 device-tree-compiler (1.4.5-3ev3dev1) xenial; urgency=medium
 
   * ev3dev takeover for backport to xenial
-  * debian: drop pristine-tar from gbp.conf
   * debian: dial back debhelper version
 
  -- David Lechner <david@lechnology.com>  Sat, 27 Apr 2019 12:18:32 -0500
