@@ -1,4 +1,4 @@
-device-tree-compiler (1.4.5-3ev3dev1) xenial; urgency=medium
+device-tree-compiler (1.4.5-3ev3dev2) xenial; urgency=medium
 
   * ev3dev takeover for backport to xenial
   * debian: dial back debhelper version
