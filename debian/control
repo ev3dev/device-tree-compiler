@@ -3,7 +3,7 @@ Section: devel
 Priority: optional
 Maintainer: David Lechner <david@lechnology.com>
 Standards-Version: 4.1.0
-Build-Depends: debhelper (>= 10), flex, bison, texlive, texlive-latex-extra
+Build-Depends: debhelper (>= 9), flex, bison, texlive, texlive-latex-extra
 Homepage: https://git.kernel.org/cgit/utils/dtc/dtc.git
 Vcs-Git: https://github.com/ev3dev/device-tree-compiler.git
 Vcs-Browser: https://github.com/ev3dev/device-tree-compiler
